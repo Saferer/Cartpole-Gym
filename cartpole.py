@@ -224,10 +224,11 @@ def extract_tensors(experiences):
     return (t1, t2, t3, t4)
 
 
-batch_size = 256
+savepoints = 100
+batch_size = 1024
 gamma = 0.999
-eps_start = 1
-eps_end = 0.01
+eps_start = 0.25  # 1
+eps_end = 0.001  # 0.01
 eps_decay = 0.0005  # 0,001
 target_update = 10
 memory_size = 100000
@@ -239,12 +240,27 @@ em = CartPoleEnvManager(device)
 strategy = EpsilonGreedyStrategy(eps_start, eps_end, eps_decay)
 agent = Agent(strategy, em.num_actions_available(), device)
 memory = ReplayMemory(memory_size)
-
+'''
 policy_net = DQN(em.get_screen_height(), em.get_screen_width()).to(device)
 target_net = DQN(em.get_screen_height(), em.get_screen_width()).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
+
+
 optimizer = optim.Adam(params=policy_net.parameters(), lr=lr)
+'''
+
+policy_net = DQN(em.get_screen_height(), em.get_screen_width()).to(device)
+target_net = DQN(em.get_screen_height(), em.get_screen_width()).to(device)
+optimizer = optim.Adam(params=policy_net.parameters(), lr=lr)
+
+checkpoint = torch.load(
+    'F:/Programming/AI/Gym/Deeplizard/Cartpole-Gym/model2.pth')
+policy_net.load_state_dict(checkpoint['model_state_dict'])
+target_net.load_state_dict(checkpoint['model_state_dict'])
+optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+target_net.eval()
+policy_net.eval()
 
 episode_durations = []
 for episode in range(num_episodes):
@@ -279,5 +295,8 @@ for episode in range(num_episodes):
 
     if episode % target_update == 0:
         target_net.load_state_dict(policy_net.state_dict())
+    if episode % savepoints == 0:
+        torch.save({'model_state_dict': policy_net.state_dict(), 'optimizer_state_dict': optimizer.state_dict()},
+                   'F:/Programming/AI/Gym/Deeplizard/Cartpole-Gym/model3-' + str(episode) + ".pth")
 
 em.close()
